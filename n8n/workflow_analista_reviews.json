@@ -1,0 +1,626 @@
+{
+  "name": "workflow_analista_reviews",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1568,
+        -592
+      ],
+      "id": "9fcade28-6be3-45c6-9896-3a49cf04ccfb",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/files/dataset/olist_order_reviews_dataset.csv",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [
+        -1312,
+        -688
+      ],
+      "id": "e70b5e4b-0ba5-4999-b7db-e22b95357bb3",
+      "name": "Carrega Dataset - reviews"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5-mini",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAzureOpenAi",
+      "typeVersion": 1.1,
+      "position": [
+        304,
+        -208
+      ],
+      "id": "d2901d37-6e90-481f-976d-3f7f7ec6042b",
+      "name": "Microsoft Foundry Chat Model",
+      "credentials": {
+        "azureOpenAiApi": {
+          "id": "4Pudp1koqZFlohqh",
+          "name": "Microsoft Foundry (API Key) account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Percorre cada item retornado pelo agente\nreturn $input.all().map(item => {\n  try {\n    // Faz o parse do JSON contido na string output\n    const parsedData = JSON.parse(item.json.output);\n\n    return {\n      json: {\n        order_id: parsedData.order_id,\n        review_id: parsedData.review_id,\n        categoria: parsedData.categoria,\n        origem: parsedData.origem,\n        divergencia: parsedData.divergencia,\n        destino: parsedData.destino,\n        severidade: parsedData.severidade,\n        confianca: Number(parsedData.confianca), // Garante que seja um número (Float)\n        resumo: parsedData.resumo\n      }\n    };\n  } catch (error) {\n    // Trata eventuais erros de parse caso a IA não retorne um JSON válido\n    return {\n      json: {\n        raw_output: item.json.output,\n        confianca: 0,\n        erro_parse: true\n      }\n    };\n  }\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        656,
+        -416
+      ],
+      "id": "1de05fca-c033-43ee-980e-efffcf6cca89",
+      "name": "Converter String JSON para Objeto"
+    },
+    {
+      "parameters": {
+        "resource": "item",
+        "operation": "create",
+        "container": {
+          "__rl": true,
+          "value": "reviews",
+          "mode": "list",
+          "cachedResultName": "reviews"
+        },
+        "customProperties": "={{\n  {\n    \"id\": $json.order_id + \"_\" + $json.review_id,\n    \"order_id\": $json.order_id,\n    \"review_id\": $json.review_id,\n    \"categoria\": $json.categoria,\n    \"origem\": $json.origem,\n    \"divergencia\": $json.divergencia,\n    \"destino\": $json.destino,\n    \"severidade\": $json.severidade,\n    \"confianca\": $json.confianca,\n    \"resumo\": $json.resumo,\n    \"status\": $json.status\n  }\n}}",
+        "requestOptions": {}
+      },
+      "type": "n8n-nodes-base.azureCosmosDb",
+      "typeVersion": 1,
+      "position": [
+        960,
+        -624
+      ],
+      "id": "3da9d2bd-2979-4146-b006-226d609237ab",
+      "name": "Create item",
+      "credentials": {
+        "microsoftAzureCosmosDbSharedKeyApi": {
+          "id": "M6f4JtgeZxVrzowQ",
+          "name": "Microsoft Azure Cosmos DB account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b4106691-f99b-4695-9e25-19adfbdb1b24",
+              "name": "order_id",
+              "value": "={{ $json.order_id }}",
+              "type": "string"
+            },
+            {
+              "id": "a9b9545b-970c-4576-8a85-a6979b7ea4ed",
+              "name": "review_id",
+              "value": "={{ $json.review_id }}",
+              "type": "string"
+            },
+            {
+              "id": "f7e06130-2d58-4ea2-9b17-5fa87d169439",
+              "name": "review_score",
+              "value": "={{ $json.review_score }}",
+              "type": "number"
+            },
+            {
+              "id": "49bdb730-756d-4785-bf67-fe86fed19503",
+              "name": "review_comment_title",
+              "value": "={{ $json.review_comment_title }}",
+              "type": "string"
+            },
+            {
+              "id": "cdddeebe-374d-40c0-ac67-a19fbba6ffa0",
+              "name": "review_comment_message",
+              "value": "={{ $json.review_comment_message }}",
+              "type": "string"
+            },
+            {
+              "id": "961aeeca-c60b-4929-ae5e-cd4b33e9e809",
+              "name": "review_answer_timestamp",
+              "value": "={{ $json.review_answer_timestamp }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        -928,
+        -688
+      ],
+      "id": "e68fb5c2-7ca8-4d8f-9379-3c2591c3da8c",
+      "name": "Normalizando os Dados"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "468839f2-4694-46b2-8bc7-a4fd3b095969",
+              "leftValue": "={{ $json.review_score }}",
+              "rightValue": 4,
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.4,
+      "position": [
+        -736,
+        -688
+      ],
+      "id": "62b6278c-2bec-4d87-9c1d-7401d4537826",
+      "name": "Review Score < 4"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/files/dataset/olist_orders_dataset.csv",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [
+        -1312,
+        -448
+      ],
+      "id": "d6b2701b-e500-4dba-8319-a41992bcaee0",
+      "name": "Carrega Dataset - orders"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "fieldsToMatchString": "order_id",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -416,
+        -560
+      ],
+      "id": "e42f3054-9ae5-420e-ad78-39e30abcb80d",
+      "name": "Merge - Enriquencimento dos Dados"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "8b6a6d98-9903-4953-82a4-6addb475dd2f",
+              "leftValue": "={{ $json.review_comment_title }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "f90ed44a-8b74-4109-8ea6-2e3c2a6ce14d",
+              "leftValue": "={{ $json.review_comment_message }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": "={{ false }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        -144,
+        -560
+      ],
+      "id": "a78e4962-0db2-4cbf-ae5a-9dd4160565ed",
+      "name": "Comentários em branco ?"
+    },
+    {
+      "parameters": {
+        "options": {
+          "maxRowCount": 10000
+        }
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.2,
+      "position": [
+        -1120,
+        -688
+      ],
+      "id": "37119315-b88f-4e44-83ad-ac5b9a0b45ae",
+      "name": "CSV para JSON_1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.2,
+      "position": [
+        -1120,
+        -448
+      ],
+      "id": "44be13b7-96d2-4cc2-83d1-214730e5cc2a",
+      "name": "CSV para JSON_2"
+    },
+    {
+      "parameters": {
+        "jsCode": "function parseDate(value) {\n  if (!value) return null;\n\n  const date = new Date(String(value).replace(' ', 'T'));\n  return Number.isNaN(date.getTime()) ? null : date;\n}\n\nreturn $input.all().map((item) => {\n  const data = item.json;\n\n  const dataEntrega = parseDate(data.order_delivered_customer_date);\n  const dataEstimada = parseDate(data.order_estimated_delivery_date);\n  const dataRespostaReview = parseDate(data.review_answer_timestamp);\n\n  const pedidoEntregueComAtraso =\n    dataEntrega &&\n    dataEstimada &&\n    dataEntrega > dataEstimada;\n\n  const pedidoNaoEntregueAposPrazo =\n    !dataEntrega &&\n    dataEstimada &&\n    dataRespostaReview &&\n    dataRespostaReview > dataEstimada;\n\n  const houveAtraso =\n    pedidoEntregueComAtraso || pedidoNaoEntregueAposPrazo;\n\n  let diasAtraso = 0;\n\n  if (pedidoEntregueComAtraso) {\n    diasAtraso = Math.ceil(\n      (dataEntrega.getTime() - dataEstimada.getTime()) /\n        (1000 * 60 * 60 * 24)\n    );\n  } else if (pedidoNaoEntregueAposPrazo) {\n    diasAtraso = Math.ceil(\n      (dataRespostaReview.getTime() - dataEstimada.getTime()) /\n        (1000 * 60 * 60 * 24)\n    );\n  }\n\n  if (houveAtraso) {\n    return {\n      json: {\n        order_id: data.order_id,\n        review_id: data.review_id,\n        categoria: 'Atraso',\n        origem: 'Dados operacionais',\n        destino: 'Logística',\n        severidade: 'Alta',\n        resumo: pedidoEntregueComAtraso\n          ? `Pedido entregue ${diasAtraso} dia(s) após o prazo estimado.`\n          : `Pedido ainda não entregue ${diasAtraso} dia(s) após o prazo estimado.`,\n      }\n    };\n  }\n\n  return {\n    json: {\n      order_id: data.order_id,\n      review_id: data.review_id,\n      categoria: 'Outro',\n      origem: 'Dados operacionais',\n      destino: 'Revisão humana',\n      severidade: 'Baixa',\n      resumo: 'Avaliação baixa sem comentário e sem evidência de atraso.',\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        160,
+        -720
+      ],
+      "id": "2a459d24-9403-404c-abbc-3d96087bee5e",
+      "name": "Code - Verifica se Houve Atraso"
+    },
+    {
+      "parameters": {
+        "content": "## 1 - Ingestão, Tipagem e Filtragem de Avaliações Negativas\n",
+        "height": 768,
+        "width": 864,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1376,
+        -832
+      ],
+      "typeVersion": 1,
+      "id": "f6db81bf-dca5-4a00-b281-cb10e3112b4e",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## 2- Enriquecimento com Contexto Logístico\n",
+        "height": 768,
+        "width": 288,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -512,
+        -832
+      ],
+      "typeVersion": 1,
+      "id": "d0bcf450-48e7-4ba9-9c84-5f0585fb511d",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## 3- Roteamento Condicional Híbrido \n",
+        "height": 768,
+        "width": 288,
+        "color": 2
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -224,
+        -832
+      ],
+      "typeVersion": 1,
+      "id": "2b521673-91a4-4d8d-8af4-26c53f812c25",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "## 4 A - Avaliação Determinística \n",
+        "height": 304,
+        "width": 752,
+        "color": "#15319D"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        64,
+        -832
+      ],
+      "typeVersion": 1,
+      "id": "a232e569-f60d-4c40-b3ef-8418a954949d",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "## 4 B - Avaliação Agêntica \n",
+        "height": 464,
+        "width": 752,
+        "color": "#2B2574"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        64,
+        -528
+      ],
+      "typeVersion": 1,
+      "id": "24b271d4-c42f-4b8d-b2d6-593ced9d02db",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "content": "## 5- Persistência NoSQL\n",
+        "height": 768,
+        "width": 400,
+        "color": "#1B4101"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        816,
+        -832
+      ],
+      "typeVersion": 1,
+      "id": "230b50cb-5ceb-4f3b-bc03-69327df3f4ac",
+      "name": "Sticky Note5"
+    },
+    {
+      "parameters": {
+        "content": "## 0 - Gatilho Manual",
+        "height": 768,
+        "width": 256,
+        "color": "#050505"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1632,
+        -832
+      ],
+      "typeVersion": 1,
+      "id": "d9b5e7d1-7fab-4524-a3ae-5fb4835d98b8",
+      "name": "Sticky Note6"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analise a seguinte avaliação do dataset Olist:\n\n- Order ID: {{ $json.order_id }}\n- Review ID: {{ $json.review_id }}\n- Nota do Review: {{ $json.review_score }}\n- Título do Comentário: \"{{ $json.review_comment_title }}\"\n- Mensagem do Comentário: \"{{ $json.review_comment_message }}\"\n- Status do Pedido: {{ $json.order_status }}\n- Data Prometida de Entrega: {{ $json.order_estimated_delivery_date }}\n- Data Efetiva de Entrega: {{ $json.order_delivered_customer_date }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "Você é o Analista de Reviews da Olist. Seu objetivo é ler e interpretar semanticamente o texto das avaliações de clientes e os dados operacionais do pedido para identificar a causa raiz de insatisfações, categorizando o problema e definindo o departamento responsável.\n\nDiretrizes de Análise:\n1. Se houver comentário, identifique a causa principal pelo sentido do texto, não por palavras isoladas.\n2. Se não houver comentário, use apenas os fatos do pedido: havendo atraso ou não entrega, a categoria é \"Atraso\"; caso contrário, \"Sem causa identificável\".\n3. Se texto e fatos divergirem, prevaleça o texto e registre a divergência.\n4. Categoria: Atraso, Produto danificado, Produto errado, Qualidade ruim, Embalagem, Não funciona, Faltando, Outro ou Sem causa identificável. Use \"Outro\" somente quando não for possível identificar uma causa específica.\n5. Destino: Logística, Seller, Qualidade ou Revisão humana. Severidade: Alta, Média ou Baixa.\n6. Informe a confiança de 0 a 1. Abaixo de 0.8, o destino é Revisão humana.\n7. Severidade Alta gera alerta ao Atendimento.\n8. O resumo tem no máximo uma frase.\n\nATENÇÃO: Responda estritamente em formato JSON válido, sem explicações adicionais, contendo exatamente as chaves:\norder_id, review_id, categoria, origem, divergencia, destino, severidade, confianca, resumo."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        336,
+        -416
+      ],
+      "id": "084c3313-fa73-47cc-ad3c-cc64ce726232",
+      "name": "Agente Analista de Reviews",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "maxItems": 5
+      },
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        144,
+        -416
+      ],
+      "id": "1f305957-e485-4c87-b0b0-1e226d06a527",
+      "name": "Limit 5 por conta da API"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Carrega Dataset - reviews",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Carrega Dataset - orders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Carrega Dataset - reviews": {
+      "main": [
+        [
+          {
+            "node": "CSV para JSON_1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Microsoft Foundry Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agente Analista de Reviews",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Converter String JSON para Objeto": {
+      "main": [
+        [
+          {
+            "node": "Create item",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizando os Dados": {
+      "main": [
+        [
+          {
+            "node": "Review Score < 4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Review Score < 4": {
+      "main": [
+        [
+          {
+            "node": "Merge - Enriquencimento dos Dados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Carrega Dataset - orders": {
+      "main": [
+        [
+          {
+            "node": "CSV para JSON_2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge - Enriquencimento dos Dados": {
+      "main": [
+        [
+          {
+            "node": "Comentários em branco ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Comentários em branco ?": {
+      "main": [
+        [
+          {
+            "node": "Code - Verifica se Houve Atraso",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Limit 5 por conta da API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CSV para JSON_1": {
+      "main": [
+        [
+          {
+            "node": "Normalizando os Dados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CSV para JSON_2": {
+      "main": [
+        [
+          {
+            "node": "Merge - Enriquencimento dos Dados",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Code - Verifica se Houve Atraso": {
+      "main": [
+        [
+          {
+            "node": "Create item",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agente Analista de Reviews": {
+      "main": [
+        [
+          {
+            "node": "Converter String JSON para Objeto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit 5 por conta da API": {
+      "main": [
+        [
+          {
+            "node": "Agente Analista de Reviews",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "timezone": "America/Sao_Paulo",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "6b71a718-255f-4a00-8736-3a0eafc70c3a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "564f76ca357381c3d583f244a16700501370c4369be4cacc4a61ad6fd78904b8"
+  },
+  "nodeGroups": [],
+  "id": "mx19YB8DzZXrmxzX",
+  "tags": []
+}
